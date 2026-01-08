@@ -1,344 +1,622 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Rocket Runner</title>
-  <style>
-    :root {
-      --bg: #0b1020;
-      --fg: #e8f0ff;
-      --accent: #7cf2ff;
-      --muted: #99a3b3;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
-    .wrap { min-height: 100%; display: grid; place-items: center; padding: 16px; }
-    .panel { width: min(900px, 100%); }
-    #game { width: 100%; height: 260px; display: block; border-radius: 16px; background: radial-gradient(1200px 300px at 50% 100%, #162040, #0b1020 60%); box-shadow: 0 15px 40px rgba(0,0,0,.35), inset 0 0 0 1px rgba(124,242,255,.15); touch-action: manipulation; }
-    .hud { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 2px 0; font-variant-numeric: tabular-nums; }
-    .hud .score { font-weight: 700; letter-spacing: .5px; }
-    .hud .btns { display: flex; gap: 8px; }
-    button { appearance: none; border: none; background: #11172c; color: var(--fg); padding: 10px 14px; border-radius: 12px; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(124,242,255,.2); transition: transform .06s ease, box-shadow .2s ease; }
-    button:hover { box-shadow: inset 0 0 0 1px rgba(124,242,255,.35), 0 3px 10px rgba(0,0,0,.25); }
-    button:active { transform: translateY(1px); }
-    .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
-    .card { pointer-events: auto; background: rgba(13, 20, 44, .9); border-radius: 16px; padding: 16px 18px; text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,.45), inset 0 0 0 1px rgba(124,242,255,.2); }
-    .title { font-size: 20px; margin: 0 0 8px; }
-    .muted { color: var(--muted); font-size: 14px; }
-    .hidden { display: none; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Mimic Game!</title>
+    <!-- Import canvas-confetti for the celebration effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Import face-api.js for facial recognition -->
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #A0E7E5;
+            background-image: radial-gradient(circle at 10% 20%, rgb(255, 252, 213) 0%, rgb(200, 247, 197) 90%);
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        /* --- UI Elements --- */
+        #game-container {
+            position: relative;
+            width: 90vw;
+            max-width: 800px;
+            height: 70vh;
+            margin-top: 20px;
+            border-radius: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            background: #fff;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 8px solid #FFB7B2;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 20px;
+            transform: scaleX(-1); /* Mirror the webcam */
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            border-radius: 20px;
+        }
+
+        /* --- HUD (Heads Up Display) --- */
+        .score-board {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #FF9AA2;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 0 #E27D84;
+            z-index: 10;
+        }
+
+        .target-emoji-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 30px;
+            border-radius: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 10;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .target-emoji {
+            font-size: 4rem;
+            line-height: 1;
+            margin-bottom: 5px;
+        }
+
+        .instruction-text {
+            font-size: 1.2rem;
+            color: #555;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            font-family: 'Fredoka One', cursive;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        #skip-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            background: #B5EAD7;
+            color: #4A8B71;
+            padding: 15px 25px;
+            border-radius: 20px;
+            font-size: 1.2rem;
+            box-shadow: 0 5px 0 #8FBCAB;
+            z-index: 10;
+        }
+
+        /* --- Loading Screen --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #FFDAC1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .loader-emoji {
+            font-size: 5rem;
+            animation: bounce 1s infinite alternate;
+        }
+
+        .loading-text {
+            margin-top: 20px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 2rem;
+            color: #FF9AA2;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-20px); }
+        }
+
+        /* --- Success Overlay --- */
+        #success-message {
+            position: fixed; /* Changed from absolute to fixed */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: #fff;
+            padding: 20px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 90vh; /* Prevent getting cut off on small screens */
+            overflow-y: auto; /* Scroll if needed */
+            border-radius: 30px;
+            border: 8px solid #FFB7B2;
+            text-align: center;
+            z-index: 1000; /* High z-index to appear on top of everything */
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        
+        #success-message.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        #success-message h2 {
+            margin: 10px 0;
+            color: #FF9AA2;
+            font-family: 'Fredoka One', cursive;
+            font-size: 2.5rem;
+        }
+
+        .snapshot-container {
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 4px solid #eee;
+            margin: 10px 0;
+            background: #000;
+            line-height: 0;
+        }
+
+        #win-snapshot {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 12px 24px;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .download {
+            background-color: #77DD77;
+            box-shadow: 0 4px 0 #5Cb85C;
+        }
+
+        .next {
+            background-color: #FFDAC1;
+            color: #FF6F61;
+            box-shadow: 0 4px 0 #FFB7B2;
+            flex-grow: 1;
+        }
+
+        /* --- Feedback Bar --- */
+        #confidence-meter {
+            position: absolute;
+            left: 20px;
+            bottom: 30px;
+            width: 20px;
+            height: 150px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column-reverse;
+            z-index: 5;
+        }
+
+        #confidence-fill {
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #FF9AA2, #C7CEEA);
+            transition: height 0.1s;
+        }
+
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="panel">
-      <div class="hud">
-        <div class="score">Score: <span id="score">0</span> · High: <span id="hi">0</span></div>
-        <div class="btns">
-          <button id="btnPause" title="P">⏸️ Pauze</button>
-          <button id="btnReset" title="R">🔄 Opnieuw</button>
-        </div>
-      </div>
-      <div style="position: relative">
-        <canvas id="game" width="900" height="260" aria-label="Runner game canvas"></canvas>
-        <div id="overlay" class="overlay">
-          <div class="card">
-            <h2 class="title">🚀 Rocket Runner</h2>
-            <p class="muted">Tik/klik of druk op <b>Spatie</b>/<b>↑</b> om te springen.
-              <br>Vermijd asteroïden en UFO's. Wordt sneller over tijd.</p>
-            <p class="muted">P = pauze, R = opnieuw.</p>
-            <div style="margin-top:10px"><button id="btnStart">Start</button></div>
-          </div>
-        </div>
-      </div>
-      <p class="muted" style="margin:10px 2px 0">Tip: wil je andere sprites? Vervang de tekenfuncties <code>drawRocket</code>, <code>drawAsteroid</code> en <code>drawUFO</code> door <code>drawImage()</code> met je eigen PNG's of SVG's. Zie commentaar in de code.</p>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader-emoji">🤔</div>
+        <div class="loading-text">Waking up the robots...</div>
     </div>
-  </div>
 
-  <script>
-    // === Utility for crisp canvas on HiDPI ===
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    function fitDPI() {
-      const dpr = Math.max(window.devicePixelRatio || 1, 1);
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Scale drawing operations
-    }
-    fitDPI();
-    addEventListener('resize', fitDPI);
+    <!-- Main Game Area -->
+    <div id="game-container">
+        <video id="video" autoplay muted playsinline></video>
+        <!-- Canvas for optional face drawing, hidden by default but good for debug -->
+        <canvas id="overlay"></canvas>
+        
+        <!-- UI Overlays -->
+        <div class="score-board">
+            Score: <span id="score">0</span>
+        </div>
 
-    // === Game state ===
-    const state = {
-      running: false,
-      paused: false,
-      gameOver: false,
-      speed: 6,          // world speed (px/frame baseline)
-      speedIncrease: 0.0008, // slow ramp-up per frame
-      gravity: 0.7,
-      jumpVel: -13,
-      groundY: () => canvas.height / (window.devicePixelRatio || 1) - 40, // pixels in CSS units
-      t: 0,
-      score: 0,
-      hi: Number(localStorage.getItem('runnerHighScore') || 0),
-      obstacles: [],
-      flyers: [],
-      stars: [],
-      nextObstacleIn: 0,
-      nextUFOIn: 600,
-      rocket: { x: 60, y: 0, vy: 0, w: 48, h: 36, onGround: true, tilt: 0 },
-    };
+        <div id="success-message">
+            <h2>AWESOME!</h2>
+            <div class="snapshot-container">
+                <img id="win-snapshot" alt="Your funny face!">
+            </div>
+            <div class="action-buttons">
+                <a id="download-link" class="btn action-btn download" download="my-funny-face.png">💾 Save</a>
+                <button id="next-level-btn" class="btn action-btn next">Next Face ➡️</button>
+            </div>
+        </div>
 
-    document.getElementById('hi').textContent = state.hi;
+        <div class="target-emoji-container" id="target-container">
+            <div class="target-emoji" id="target-emoji">😄</div>
+            <div class="instruction-text" id="target-text">Make a Happy Face!</div>
+        </div>
 
-    // === Input ===
-    let pressed = new Set();
-    addEventListener('keydown', e => {
-      if ([" ", "Spacebar", "ArrowUp"].includes(e.key)) { e.preventDefault(); jump(); }
-      if (e.key === 'p' || e.key === 'P') togglePause();
-      if (e.key === 'r' || e.key === 'R') reset();
-      pressed.add(e.key);
-    }, { passive: false });
-    addEventListener('keyup', e => pressed.delete(e.key));
-    canvas.addEventListener('pointerdown', () => { if (!state.running) start(); else jump(); });
+        <button id="skip-btn" class="btn">Skip This One</button>
+        
+        <!-- Little fun meter to show the child the computer sees them -->
+        <div id="confidence-meter" title="Match Strength">
+            <div id="confidence-fill"></div>
+        </div>
+    </div>
 
-    document.getElementById('btnStart').onclick = () => start();
-    document.getElementById('btnPause').onclick = () => togglePause();
-    document.getElementById('btnReset').onclick = () => reset();
+    <script>
+        // --- Game Configuration ---
+        const TARGET_HOLD_TIME = 10; // Number of frames to hold expression to win
+        const DETECTION_THRESHOLD = 0.7; // How confident the AI needs to be (0.0 to 1.0)
+        
+        // Emoji Definitions
+        const EMOTIONS = [
+            { id: 'happy', emoji: '😄', text: 'Be Happy!', color: '#FFD700' },
+            { id: 'surprised', emoji: '😲', text: 'Be Surprised!', color: '#ADD8E6' },
+            { id: 'angry', emoji: '😠', text: 'Show a Grumpy Face!', color: '#FF6347', threshold: 0.4 },
+            { id: 'sad', emoji: '😢', text: 'Make a Sad Face', color: '#4682B4' },
+            // Lower threshold (0.2) makes this very easy to get
+            { id: 'disgusted', emoji: '🤢', text: 'Make a Yucky Face!', color: '#8FBC8F', threshold: 0.2 },
+            { id: 'fearful', emoji: '😱', text: 'Look Scared!', color: '#9370DB', threshold: 0.25 },
+            { id: 'neutral', emoji: '😐', text: 'Make a Serious Face!', color: '#D3D3D3' },
+            // New Variations (Reuse base emotions but with different prompts)
+            { id: 'happy', emoji: '😆', text: 'Laugh Out Loud!', color: '#FFD700' },
+            { id: 'surprised', emoji: '🤯', text: 'Mind Blown!', color: '#87CEEB' },
+            { id: 'angry', emoji: '😡', text: 'Super Angry!', color: '#B22222', threshold: 0.4 }
+        ];
 
-    function start() {
-      if (state.running && !state.gameOver) return;
-      hideOverlay();
-      Object.assign(state, {
-        running: true,
-        paused: false,
-        gameOver: false,
-        speed: 6,
-        score: 0,
-        obstacles: [],
-        flyers: [],
-        stars: createStars(),
-        nextObstacleIn: 40 + Math.random() * 40,
-        nextUFOIn: 600 + Math.random() * 400,
-        t: 0,
-      });
-      state.rocket.y = state.groundY() - state.rocket.h;
-      state.rocket.vy = 0;
-      loop();
-    }
+        // --- State ---
+        let score = 0;
+        let currentEmotionIndex = 0;
+        let isModelLoaded = false;
+        let isGameRunning = false;
+        let matchCounter = 0; // Counts frames where face matches
+        let isProcessingWin = false; // Prevent double firing
 
-    function reset() { showOverlay(); state.running = false; state.gameOver = false; draw(); }
-    function togglePause() { if (!state.running) return; state.paused = !state.paused; if (!state.paused) loop(); }
-    function jump() {
-      if (!state.running || state.paused) return;
-      if (state.rocket.onGround) { state.rocket.vy = state.jumpVel; state.rocket.onGround = false; }
-    }
+        // --- DOM Elements ---
+        const video = document.getElementById('video');
+        const loadingScreen = document.getElementById('loading-screen');
+        const targetEmojiEl = document.getElementById('target-emoji');
+        const targetTextEl = document.getElementById('target-text');
+        const targetContainer = document.getElementById('target-container');
+        const scoreEl = document.getElementById('score');
+        const skipBtn = document.getElementById('skip-btn');
+        const successMsg = document.getElementById('success-message');
+        const confidenceFill = document.getElementById('confidence-fill');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const downloadLink = document.getElementById('download-link');
+        const winSnapshot = document.getElementById('win-snapshot');
 
-    // === World generation ===
-    function createStars() {
-      const arr = [];
-      const count = Math.round(canvas.width / (window.devicePixelRatio||1) / 4);
-      for (let i = 0; i < count; i++) {
-        arr.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5 + .2, par: .2 + Math.random() * .8 });
-      }
-      return arr;
-    }
+        // --- Audio Controller (Synthesized sounds) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
 
-    function maybeSpawn() {
-      state.nextObstacleIn--;
-      if (state.nextObstacleIn <= 0) {
-        const size = 18 + Math.random() * 28;
-        state.obstacles.push({ x: canvas.width/(window.devicePixelRatio||1) + 30, y: state.groundY() - size, w: size, h: size, rot: Math.random() * Math.PI });
-        state.nextObstacleIn = 40 + Math.random() * 60 + Math.max(0, 40 - state.speed * 3);
-      }
-      state.nextUFOIn--;
-      if (state.nextUFOIn <= 0) {
-        const h = 22 + Math.random() * 8;
-        const y = state.groundY() - (Math.random() < 0.5 ? 110 : 160) - Math.random() * 40;
-        state.flyers.push({ x: canvas.width/(window.devicePixelRatio||1) + 30, y, w: 46, h, bob: Math.random()*6.28 });
-        state.nextUFOIn = 480 + Math.random() * 420;
-      }
-    }
+            const now = audioCtx.currentTime;
 
-    // === Game loop ===
-    let rafId;
-    function loop() {
-      if (!state.running || state.paused) return;
-      update();
-      draw();
-      rafId = requestAnimationFrame(loop);
-    }
+            if (type === 'success') {
+                // Happy major arpeggio
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
+                
+                gainNode.gain.setValueAtTime(0.3, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } else if (type === 'skip') {
+                // Whoosh sound
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(50, now + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'pop') {
+                // Short pop
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                
+                osc.start(now);
+                osc.stop(now + 0.1);
+            }
+        }
 
-    function update() {
-      state.t++;
-      state.speed += state.speedIncrease; // ramp difficulty
-      state.score += state.speed * 0.1; // score scales with speed
+        // --- Game Logic ---
 
-      // Rocket physics
-      state.rocket.vy += state.gravity;
-      state.rocket.y += state.rocket.vy;
-      if (state.rocket.y >= state.groundY() - state.rocket.h) {
-        state.rocket.y = state.groundY() - state.rocket.h;
-        state.rocket.vy = 0; state.rocket.onGround = true;
-      }
-      state.rocket.tilt = state.rocket.onGround ? 0 : Math.max(-0.35, Math.min(0.35, -state.rocket.vy * 0.03));
+        function pickRandomEmotion() {
+            let newIndex;
+            do {
+                newIndex = Math.floor(Math.random() * EMOTIONS.length);
+            } while (newIndex === currentEmotionIndex && EMOTIONS.length > 1);
+            
+            currentEmotionIndex = newIndex;
+            updateUI();
+        }
 
-      // Obstacles
-      maybeSpawn();
-      const vx = -state.speed;
-      state.obstacles.forEach(o => { o.x += vx; o.rot += 0.06; });
-      state.flyers.forEach(f => { f.x += vx * 1.15; f.bob += 0.06; });
-      state.obstacles = state.obstacles.filter(o => o.x + o.w > -20);
-      state.flyers = state.flyers.filter(f => f.x + f.w > -20);
+        function updateUI() {
+            const emotion = EMOTIONS[currentEmotionIndex];
+            targetEmojiEl.innerText = emotion.emoji;
+            targetTextEl.innerText = emotion.text;
+            
+            // Pop animation for the container
+            targetContainer.style.transform = "translateX(-50%) scale(0.8)";
+            setTimeout(() => {
+                targetContainer.style.transform = "translateX(-50%) scale(1)";
+            }, 100);
+            
+            matchCounter = 0;
+            confidenceFill.style.height = '0%';
+        }
 
-      // Collisions (AABB with a small inset to be fair)
-      const inset = 6;
-      const pr = { x: state.rocket.x + inset, y: state.rocket.y + inset, w: state.rocket.w - inset*2, h: state.rocket.h - inset*2 };
-      for (const o of state.obstacles) {
-        if (rectsOverlap(pr, { x: o.x, y: o.y, w: o.w, h: o.h })) { endGame(); return; }
-      }
-      for (const f of state.flyers) {
-        if (rectsOverlap(pr, { x: f.x, y: f.y, w: f.w, h: f.h })) { endGame(); return; }
-      }
+        function captureSnapshot() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Mirror the image context so the saved photo looks like the mirror reflection (what the user sees)
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            
+            // Draw the current video frame
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // High score
-      if (Math.floor(state.score) > state.hi) {
-        state.hi = Math.floor(state.score);
-        localStorage.setItem('runnerHighScore', state.hi);
-        document.getElementById('hi').textContent = state.hi;
-      }
-      document.getElementById('score').textContent = Math.floor(state.score);
-    }
+            // Reset transform to draw text normally (not mirrored)
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    function endGame() {
-      state.gameOver = true; state.running = false; cancelAnimationFrame(rafId);
-      showOverlay(`<h2 class="title">💥 Game Over</h2><p class="muted">Score: <b>${Math.floor(state.score)}</b> · High: <b>${state.hi}</b></p><div style="margin-top:10px"><button id=\"btnAgain\">Speel opnieuw</button></div>`);
-      document.getElementById('btnAgain').onclick = () => start();
-    }
+            // Draw the target emoji in the top right
+            const emotion = EMOTIONS[currentEmotionIndex];
+            ctx.font = "80px Arial"; // System font for emojis
+            ctx.textAlign = "right";
+            ctx.textBaseline = "top";
+            
+            // Add a little drop shadow to make it pop against any background
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
 
-    function rectsOverlap(a, b) { return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y; }
+            // Draw: x = width - 20px padding, y = 20px padding
+            ctx.fillText(emotion.emoji, canvas.width - 20, 20);
+            
+            // Convert to data URL
+            const dataUrl = canvas.toDataURL('image/png');
+            return dataUrl;
+        }
 
-    // === Drawing ===
-    function draw() {
-      const w = canvas.width / (window.devicePixelRatio || 1);
-      const h = canvas.height / (window.devicePixelRatio || 1);
-      // Sky
-      ctx.clearRect(0, 0, w, h);
+        function handleWin() {
+            if (isProcessingWin) return;
+            isProcessingWin = true;
 
-      // Stars parallax
-      for (const s of state.stars) {
-        s.x -= state.speed * 0.1 * s.par; if (s.x < -2) s.x = w + Math.random() * 40; // wrap
-        ctx.globalAlpha = 0.6 + 0.4*Math.sin((state.t + s.x) * 0.01);
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fillStyle = '#cde5ff'; ctx.fill();
-      }
-      ctx.globalAlpha = 1;
+            playSound('success');
+            
+            // Capture the moment!
+            const snapshotUrl = captureSnapshot();
+            winSnapshot.src = snapshotUrl;
+            downloadLink.href = snapshotUrl;
+            // Generate a fun filename with timestamp
+            downloadLink.download = `emoji-master-${Date.now()}.png`;
 
-      // Ground line + dashes
-      const gy = state.groundY();
-      ctx.strokeStyle = 'rgba(124,242,255,.35)';
-      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, gy+0.5); ctx.lineTo(w, gy+0.5); ctx.stroke();
-      const dashSpeed = state.speed * 1.1; ctx.lineWidth = 3; ctx.setLineDash([10, 14]); ctx.lineDashOffset = -((state.t * dashSpeed) % 24);
-      ctx.strokeStyle = 'rgba(124,242,255,.25)'; ctx.beginPath(); ctx.moveTo(0, gy - 10); ctx.lineTo(w, gy - 10); ctx.stroke(); ctx.setLineDash([]);
+            // Confetti explosion
+            confetti({
+                zIndex: 2000, // Ensure confetti appears ON TOP of the popup
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA']
+            });
 
-      // Obstacles (asteroids)
-      for (const o of state.obstacles) drawAsteroid(o.x, o.y, o.w, o.h, o.rot);
+            // Show success message with the photo
+            successMsg.classList.add('show');
+            score++;
+            scoreEl.innerText = score;
 
-      // Flyers (UFOs)
-      for (const f of state.flyers) drawUFO(f.x, f.y, f.w, f.h, f.bob);
+            // REMOVED Auto-advance code. Now we wait for button click.
+        }
 
-      // Rocket
-      drawRocket(state.rocket.x, state.rocket.y, state.rocket.w, state.rocket.h, state.rocket.tilt, !state.rocket.onGround);
-    }
+        function handleNextLevel() {
+            successMsg.classList.remove('show');
+            // Small delay to allow fade out
+            setTimeout(() => {
+                isProcessingWin = false;
+                pickRandomEmotion();
+            }, 300);
+        }
 
-    // === Sprite drawing (replace with your own images if you like) ===
-    // To use your own PNGs/SVGs:
-    // 1) Create Image objects: const img = new Image(); img.src = 'my.png';
-    // 2) In drawRocket / drawAsteroid / drawUFO, replace the vector drawing with ctx.drawImage(img, x, y, w, h)
+        function handleSkip() {
+            if (isProcessingWin) return;
+            playSound('skip');
+            
+            // Small visual feedback
+            skipBtn.style.transform = "scale(0.9)";
+            setTimeout(() => skipBtn.style.transform = "scale(1)", 100);
+            
+            pickRandomEmotion();
+        }
 
-    function drawRocket(x, y, w, h, tilt=0, inAir=false) {
-      ctx.save();
-      ctx.translate(x + w/2, y + h/2);
-      ctx.rotate(tilt);
-      ctx.translate(-w/2, -h/2);
-      // body
-      roundRect(0, 0, w, h, 10, '#a8d1ff', true, '#5fbef0');
-      // window
-      ctx.beginPath(); ctx.arc(w*0.6, h*0.45, h*0.18, 0, Math.PI*2); ctx.fillStyle = '#1b2a4a'; ctx.fill();
-      ctx.beginPath(); ctx.arc(w*0.6, h*0.45, h*0.12, 0, Math.PI*2); ctx.fillStyle = '#9ad9ff'; ctx.fill();
-      // fin
-      roundRect(-2, h*0.55, w*0.35, h*0.35, 6, '#7cf2ff', true, '#50b9c7');
-      // flame when in air
-      if (inAir) {
-        const flameLen = 10 + 6*Math.sin(state.t * 0.4);
-        ctx.beginPath();
-        ctx.moveTo(-6, h*0.55);
-        ctx.quadraticCurveTo(-10 - flameLen*0.4, h*0.7, -6, h*0.85);
-        ctx.lineTo(-10 - flameLen, h*0.7);
-        ctx.closePath();
-        const grad = ctx.createLinearGradient(-10 - flameLen, h*0.7, -4, h*0.7);
-        grad.addColorStop(0, '#ff9b00'); grad.addColorStop(1, '#ffe98a');
-        ctx.fillStyle = grad; ctx.fill();
-      }
-      ctx.restore();
-    }
+        // --- Face API Setup ---
 
-    function drawAsteroid(x, y, w, h, rot=0) {
-      ctx.save(); ctx.translate(x + w/2, y + h/2); ctx.rotate(rot); ctx.translate(-w/2, -h/2);
-      ctx.fillStyle = '#9aa3b2'; ctx.strokeStyle = '#6e7a8f'; ctx.lineWidth = 2;
-      ctx.beginPath();
-      const pts = [
-        [w*0.15, h*0.1], [w*0.8, h*0.05], [w*0.95, h*0.45], [w*0.8, h*0.85], [w*0.2, h*0.95], [w*0.05, h*0.5]
-      ];
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      // craters
-      ctx.fillStyle = '#7b8597';
-      for (let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(w*(0.2+Math.random()*0.6), h*(0.2+Math.random()*0.6), Math.min(w,h)*0.08, 0, Math.PI*2); ctx.fill(); }
-      ctx.restore();
-    }
+        async function loadModels() {
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+            
+            try {
+                // Load only what we need for expression detection
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+                startVideo();
+            } catch (err) {
+                console.error("Error loading models", err);
+                document.querySelector('.loading-text').innerText = "Oh no! Could not load the brain.";
+            }
+        }
 
-    function drawUFO(x, y, w, h, bob=0) {
-      const yy = y + Math.sin(bob) * 5;
-      ctx.save(); ctx.translate(x, yy);
-      // beam
-      ctx.globalAlpha = 0.12; ctx.fillStyle = '#7cf2ff';
-      ctx.beginPath(); ctx.moveTo(w*0.5, h*0.6); ctx.lineTo(w*0.2, h*2.2); ctx.lineTo(w*0.8, h*2.2); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
-      // dome
-      ctx.fillStyle = '#9ad9ff'; ctx.beginPath(); ctx.ellipse(w*0.5, h*0.35, w*0.28, h*0.25, 0, 0, Math.PI*2); ctx.fill();
-      // saucer
-      const grad = ctx.createLinearGradient(0,0,w,0); grad.addColorStop(0,'#7cf2ff'); grad.addColorStop(1,'#50b9c7');
-      roundRect(0, h*0.45, w, h*0.3, h*0.18, grad, true, '#2f7f8d');
-      // lights
-      for (let i=0;i<4;i++){ ctx.beginPath(); ctx.arc(w*(0.2+i*0.2), h*0.6, h*0.07, 0, Math.PI*2); ctx.fillStyle = '#ffe98a'; ctx.fill(); }
-      ctx.restore();
-    }
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => {
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    console.error("Camera denied", err);
+                    document.querySelector('.loading-text').innerText = "I need to see you to play! Please allow camera access.";
+                });
+        }
 
-    function roundRect(x, y, w, h, r, fillStyle, fill=true, strokeStyle=null) {
-      const rr = Math.min(r, w/2, h/2);
-      ctx.beginPath();
-      ctx.moveTo(x+rr, y);
-      ctx.arcTo(x+w, y,   x+w, y+h, rr);
-      ctx.arcTo(x+w, y+h, x,   y+h, rr);
-      ctx.arcTo(x,   y+h, x,   y,   rr);
-      ctx.arcTo(x,   y,   x+w, y,   rr);
-      if (fill) { ctx.fillStyle = fillStyle; ctx.fill(); }
-      if (strokeStyle) { ctx.strokeStyle = strokeStyle; ctx.stroke(); }
-    }
+        video.addEventListener('play', () => {
+            isModelLoaded = true;
+            loadingScreen.style.display = 'none';
+            isGameRunning = true;
+            
+            // Start the detection loop
+            setInterval(async () => {
+                if (!isGameRunning || isProcessingWin) return;
 
-    // === Overlay helpers ===
-    function showOverlay(html) {
-      const el = document.getElementById('overlay');
-      if (html) el.querySelector('.card').innerHTML = html;
-      el.classList.remove('hidden');
-    }
-    function hideOverlay() { document.getElementById('overlay').classList.add('hidden'); }
+                // Detect faces and expressions
+                // Using TinyFaceDetector for speed (good for real-time)
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
 
-    // Initial paint
-    state.stars = createStars();
-    state.rocket.y = state.groundY() - state.rocket.h;
-    draw();
-  </script>
+                if (detections.length > 0) {
+                    // Get the first face detected
+                    const expressions = detections[0].expressions;
+                    const targetEmotion = EMOTIONS[currentEmotionIndex];
+                    const targetId = targetEmotion.id;
+                    const requiredConfidence = targetEmotion.threshold || DETECTION_THRESHOLD;
+                    
+                    // Check probability of the current target emotion
+                    let currentProbability = expressions[targetId];
+
+                    // --- COMPATIBILITY PATCHES ---
+                    // "Fear" is very hard for this model; it often looks like "Surprise"
+                    // We blend in some of the "Surprised" score to help it register
+                    if (targetId === 'fearful') {
+                         // Take the actual fear, or half of surprise, whichever is higher
+                         currentProbability = Math.max(currentProbability, expressions['surprised'] * 0.5);
+                    }
+                    
+                    // "Disgusted" often looks like "Angry" to the model
+                    // Increased the fallback: if it looks even mostly angry (0.7), it counts towards disgust
+                    if (targetId === 'disgusted') {
+                        currentProbability = Math.max(currentProbability, expressions['angry'] * 0.7);
+                    }
+                    // -----------------------------
+
+                    // Visual feedback: Scale bar relative to the REQUIRED threshold
+                    // So if threshold is 0.4, getting 0.4 fills the bar 100%
+                    const percentage = Math.min(100, Math.round((currentProbability / requiredConfidence) * 90));
+                    confidenceFill.style.height = `${percentage}%`;
+                    
+                    // Change color if we are close/winning
+                    if (percentage > 90) {
+                        confidenceFill.style.backgroundColor = "#77DD77"; // Pastel Green
+                    } else {
+                        confidenceFill.style.backgroundColor = "#FFB7B2"; // Reset to pink
+                    }
+
+                    // Check for win condition
+                    if (currentProbability > requiredConfidence) {
+                        matchCounter++;
+                        if (matchCounter >= TARGET_HOLD_TIME) {
+                            handleWin();
+                        }
+                    } else {
+                        // Decay the match counter so you don't lose progress instantly on a glitch
+                        matchCounter = Math.max(0, matchCounter - 1);
+                    }
+                } else {
+                    confidenceFill.style.height = '0%';
+                }
+            }, 100); // Check every 100ms
+        });
+
+        // --- Initialization ---
+        skipBtn.addEventListener('click', handleSkip);
+        nextLevelBtn.addEventListener('click', handleNextLevel);
+        
+        // Start loading
+        loadModels();
+        pickRandomEmotion();
+
+    </script>
 </body>
 </html>
