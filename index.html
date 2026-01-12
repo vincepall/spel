@@ -1,12 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>gekken bekke!</title>
-    <!-- Import canvas-confetti for the celebration effects -->
+    <title>Gekke Bekken!</title>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Import face-api.js for facial recognition -->
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
@@ -101,6 +99,8 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
+            text-align: center;
+            white-space: nowrap;
         }
 
         /* --- Buttons --- */
@@ -153,6 +153,8 @@
             font-family: 'Fredoka One', cursive;
             font-size: 2rem;
             color: #FF9AA2;
+            text-align: center;
+            padding: 0 20px;
         }
 
         @keyframes bounce {
@@ -268,43 +270,38 @@
 </head>
 <body>
 
-    <!-- Loading Screen -->
     <div id="loading-screen">
         <div class="loader-emoji">🤔</div>
-        <div class="loading-text">Waking up the robots...</div>
+        <div class="loading-text">Robots wakker maken...</div>
     </div>
 
-    <!-- Main Game Area -->
     <div id="game-container">
         <video id="video" autoplay muted playsinline></video>
-        <!-- Canvas for optional face drawing, hidden by default but good for debug -->
         <canvas id="overlay"></canvas>
         
-        <!-- UI Overlays -->
         <div class="score-board">
-            Score: <span id="score">0</span>
+            Punten: <span id="score">0</span>
         </div>
 
         <div id="success-message">
-            <h2>AWESOME!</h2>
+            <h2>GEWELDIG!</h2>
             <div class="snapshot-container">
-                <img id="win-snapshot" alt="Your funny face!">
+                <img id="win-snapshot" alt="Jouw gekke gezicht!">
             </div>
             <div class="action-buttons">
-                <a id="download-link" class="btn action-btn download" download="my-funny-face.png">💾 Save</a>
-                <button id="next-level-btn" class="btn action-btn next">Next Face ➡️</button>
+                <a id="download-link" class="btn action-btn download" download="mijn-gekke-bek.png">💾 Opslaan</a>
+                <button id="next-level-btn" class="btn action-btn next">Volgende ➡️</button>
             </div>
         </div>
 
         <div class="target-emoji-container" id="target-container">
             <div class="target-emoji" id="target-emoji">😄</div>
-            <div class="instruction-text" id="target-text">Make a Happy Face!</div>
+            <div class="instruction-text" id="target-text">Trek een blij gezicht!</div>
         </div>
 
-        <button id="skip-btn" class="btn">Skip This One</button>
+        <button id="skip-btn" class="btn">Overslaan</button>
         
-        <!-- Little fun meter to show the child the computer sees them -->
-        <div id="confidence-meter" title="Match Strength">
+        <div id="confidence-meter" title="Hoe goed het lijkt">
             <div id="confidence-fill"></div>
         </div>
     </div>
@@ -316,18 +313,18 @@
         
         // Emoji Definitions
         const EMOTIONS = [
-            { id: 'happy', emoji: '😄', text: 'Be Happy!', color: '#FFD700' },
-            { id: 'surprised', emoji: '😲', text: 'Be Surprised!', color: '#ADD8E6' },
-            { id: 'angry', emoji: '😠', text: 'Show a Grumpy Face!', color: '#FF6347', threshold: 0.4 },
-            { id: 'sad', emoji: '😢', text: 'Make a Sad Face', color: '#4682B4' },
+            { id: 'happy', emoji: '😄', text: 'Kijk Blij!', color: '#FFD700' },
+            { id: 'surprised', emoji: '😲', text: 'Kijk Verrast!', color: '#ADD8E6' },
+            { id: 'angry', emoji: '😠', text: 'Kijk Knorrig!', color: '#FF6347', threshold: 0.4 },
+            { id: 'sad', emoji: '😢', text: 'Kijk Verdrietig', color: '#4682B4' },
             // Lower threshold (0.2) makes this very easy to get
-            { id: 'disgusted', emoji: '🤢', text: 'Make a Yucky Face!', color: '#8FBC8F', threshold: 0.2 },
-            { id: 'fearful', emoji: '😱', text: 'Look Scared!', color: '#9370DB', threshold: 0.25 },
-            { id: 'neutral', emoji: '😐', text: 'Make a Serious Face!', color: '#D3D3D3' },
+            { id: 'disgusted', emoji: '🤢', text: 'Bah, vies!', color: '#8FBC8F', threshold: 0.2 },
+            { id: 'fearful', emoji: '😱', text: 'Kijk Bang!', color: '#9370DB', threshold: 0.25 },
+            { id: 'neutral', emoji: '😐', text: 'Kijk Serieus!', color: '#D3D3D3' },
             // New Variations (Reuse base emotions but with different prompts)
-            { id: 'happy', emoji: '😆', text: 'Laugh Out Loud!', color: '#FFD700' },
-            { id: 'surprised', emoji: '🤯', text: 'Mind Blown!', color: '#87CEEB' },
-            { id: 'angry', emoji: '😡', text: 'Super Angry!', color: '#B22222', threshold: 0.4 }
+            { id: 'happy', emoji: '😆', text: 'Lach Hardop!', color: '#FFD700' },
+            { id: 'surprised', emoji: '🤯', text: 'Hoofd Ontploft!', color: '#87CEEB' },
+            { id: 'angry', emoji: '😡', text: 'Super Boos!', color: '#B22222', threshold: 0.4 }
         ];
 
         // --- State ---
@@ -477,7 +474,7 @@
             winSnapshot.src = snapshotUrl;
             downloadLink.href = snapshotUrl;
             // Generate a fun filename with timestamp
-            downloadLink.download = `emoji-master-${Date.now()}.png`;
+            downloadLink.download = `gekke-bekken-kampioen-${Date.now()}.png`;
 
             // Confetti explosion
             confetti({
@@ -528,7 +525,7 @@
                 startVideo();
             } catch (err) {
                 console.error("Error loading models", err);
-                document.querySelector('.loading-text').innerText = "Oh no! Could not load the brain.";
+                document.querySelector('.loading-text').innerText = "Oh nee! De hersenen werken niet.";
             }
         }
 
@@ -539,7 +536,7 @@
                 })
                 .catch(err => {
                     console.error("Camera denied", err);
-                    document.querySelector('.loading-text').innerText = "I need to see you to play! Please allow camera access.";
+                    document.querySelector('.loading-text').innerText = "Ik moet je zien om te spelen! Zet je camera aan.";
                 });
         }
 
