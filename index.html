@@ -3,10 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gekke Bekken!</title>
+    <title>Gekke Bekke spel</title>
+    <!-- Viering Effecten -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- MediaPipe Vision (De slimme AI) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
+    <!-- Icoontjes voor de pijl -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
     <style>
+        /* --- STIJLEN & LETTERTYPES --- */
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700&display=swap');
 
         body {
@@ -23,7 +29,7 @@
             user-select: none;
         }
 
-        /* --- UI Elements --- */
+        /* --- SPEL CONTAINER --- */
         #game-container {
             position: relative;
             width: 90vw;
@@ -46,89 +52,85 @@
             height: 100%;
             object-fit: cover;
             border-radius: 20px;
-            transform: scaleX(-1); /* Mirror the webcam */
+            transform: scaleX(-1); /* Spiegelbeeld */
         }
 
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            border-radius: 20px;
-        }
-
-        /* --- HUD (Heads Up Display) --- */
+        /* --- UI ELEMENTEN --- */
         .score-board {
             position: absolute;
             top: 20px;
             right: 20px;
             background: #FF9AA2;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 20px;
             color: white;
             font-family: 'Fredoka One', cursive;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             box-shadow: 0 4px 0 #E27D84;
             z-index: 10;
         }
 
         .target-emoji-container {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 30px;
-            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px 25px;
+            border-radius: 40px;
             display: flex;
             flex-direction: column;
             align-items: center;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             z-index: 10;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            min-width: 220px;
+            pointer-events: none;
         }
 
         .target-emoji {
-            font-size: 4rem;
+            font-size: 3.5rem;
             line-height: 1;
             margin-bottom: 5px;
         }
 
         .instruction-text {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #555;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
             text-align: center;
-            white-space: nowrap;
         }
 
-        /* --- Buttons --- */
+        /* --- KNOPPEN --- */
         .btn {
             font-family: 'Fredoka One', cursive;
             border: none;
             cursor: pointer;
             transition: transform 0.1s;
         }
-
-        .btn:active {
-            transform: scale(0.95);
-        }
+        .btn:active { transform: scale(0.95); }
 
         #skip-btn {
             position: absolute;
             bottom: 30px;
-            right: 30px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
             background: #B5EAD7;
             color: #4A8B71;
-            padding: 15px 25px;
-            border-radius: 20px;
-            font-size: 1.2rem;
-            box-shadow: 0 5px 0 #8FBCAB;
-            z-index: 10;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 0 #8FBCAB;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
         }
 
-        /* --- Loading Screen --- */
+        /* --- LAADSCHERM --- */
         #loading-screen {
             position: fixed;
             top: 0;
@@ -142,58 +144,49 @@
             align-items: center;
             z-index: 100;
         }
+        .loader-emoji { font-size: 5rem; animation: bounce 1s infinite alternate; }
+        .loading-text { margin-top: 20px; font-family: 'Fredoka One', cursive; font-size: 2rem; color: #FF9AA2; text-align: center; }
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-20px); } }
 
-        .loader-emoji {
-            font-size: 5rem;
-            animation: bounce 1s infinite alternate;
-        }
-
-        .loading-text {
-            margin-top: 20px;
-            font-family: 'Fredoka One', cursive;
-            font-size: 2rem;
-            color: #FF9AA2;
-            text-align: center;
-            padding: 0 20px;
-        }
-
-        @keyframes bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-20px); }
-        }
-
-        /* --- Success Overlay --- */
+        /* --- GEWONNEN SCHERM (MODAL) --- */
         #success-message {
-            position: fixed; /* Changed from absolute to fixed */
+            position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0);
             background: #fff;
             padding: 20px;
-            width: 90%;
-            max-width: 450px;
-            max-height: 90vh; /* Prevent getting cut off on small screens */
-            overflow-y: auto; /* Scroll if needed */
+            width: 85%;
+            max-width: 400px;
             border-radius: 30px;
             border: 8px solid #FFB7B2;
             text-align: center;
-            z-index: 1000; /* High z-index to appear on top of everything */
+            z-index: 1000;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex;
             flex-direction: column;
             align-items: center;
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
         }
-        
-        #success-message.show {
-            transform: translate(-50%, -50%) scale(1);
+        #success-message.show { transform: translate(-50%, -50%) scale(1); }
+
+        /* Canvas voor lokale confetti */
+        #confetti-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
         }
 
-        #success-message h2 {
-            margin: 10px 0;
-            color: #FF9AA2;
-            font-family: 'Fredoka One', cursive;
-            font-size: 2.5rem;
+        #success-message h2, 
+        .snapshot-container, 
+        .action-buttons {
+            position: relative;
+            z-index: 2;
         }
 
         .snapshot-container {
@@ -203,48 +196,27 @@
             border: 4px solid #eee;
             margin: 10px 0;
             background: #000;
-            line-height: 0;
         }
+        #win-snapshot { width: 100%; height: auto; display: block; }
 
-        #win-snapshot {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 15px;
-            width: 100%;
-            justify-content: center;
-        }
-
+        .action-buttons { display: flex; gap: 15px; margin-top: 15px; width: 100%; }
         .action-btn {
             padding: 12px 24px;
             border-radius: 15px;
             font-size: 1.1rem;
             text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
             color: white;
             font-weight: bold;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
         }
+        .download { background-color: #77DD77; box-shadow: 0 4px 0 #5Cb85C; }
+        .next { background-color: #FFDAC1; color: #FF6F61; box-shadow: 0 4px 0 #FFB7B2; }
 
-        .download {
-            background-color: #77DD77;
-            box-shadow: 0 4px 0 #5Cb85C;
-        }
-
-        .next {
-            background-color: #FFDAC1;
-            color: #FF6F61;
-            box-shadow: 0 4px 0 #FFB7B2;
-            flex-grow: 1;
-        }
-
-        /* --- Feedback Bar --- */
+        /* --- VERTROUWENSMETER --- */
         #confidence-meter {
             position: absolute;
             left: 20px;
@@ -258,149 +230,351 @@
             flex-direction: column-reverse;
             z-index: 5;
         }
-
         #confidence-fill {
             width: 100%;
             height: 0%;
-            background: linear-gradient(to top, #FF9AA2, #C7CEEA);
-            transition: height 0.1s;
+            background: #FF9AA2;
+            transition: height 0.1s, background-color 0.2s;
         }
-
     </style>
 </head>
 <body>
 
+    <!-- LADEN -->
     <div id="loading-screen">
-        <div class="loader-emoji">🤔</div>
-        <div class="loading-text">Robots wakker maken...</div>
+        <div class="loader-emoji">🤖</div>
+        <div class="loading-text" id="status-text">De robots worden wakker...</div>
     </div>
 
+    <!-- SPEL GEBIED -->
     <div id="game-container">
         <video id="video" autoplay muted playsinline></video>
-        <canvas id="overlay"></canvas>
         
-        <div class="score-board">
-            Punten: <span id="score">0</span>
-        </div>
+        <div class="score-board">Score: <span id="score">0</span></div>
 
+        <!-- GEWONNEN POPUP -->
         <div id="success-message">
-            <h2>GEWELDIG!</h2>
+            <canvas id="confetti-canvas"></canvas>
+            <h2 style="font-family:'Fredoka One'; color:#FF9AA2; margin:10px 0;">GEWELDIG!</h2>
             <div class="snapshot-container">
-                <img id="win-snapshot" alt="Jouw gekke gezicht!">
+                <img id="win-snapshot" alt="Je grappige gezicht!">
             </div>
             <div class="action-buttons">
-                <a id="download-link" class="btn action-btn download" download="mijn-gekke-bek.png">💾 Opslaan</a>
+                <a id="download-link" class="btn action-btn download" download="mijn-gezicht.png">💾 Opslaan</a>
                 <button id="next-level-btn" class="btn action-btn next">Volgende ➡️</button>
             </div>
         </div>
 
+        <!-- Doel Weergave -->
         <div class="target-emoji-container" id="target-container">
-            <div class="target-emoji" id="target-emoji">😄</div>
-            <div class="instruction-text" id="target-text">Trek een blij gezicht!</div>
+            <div class="target-emoji" id="target-emoji">?</div>
+            <div class="instruction-text" id="target-text">Laden...</div>
         </div>
 
-        <button id="skip-btn" class="btn">Overslaan</button>
+        <!-- Pijl Knop -->
+        <button id="skip-btn" class="btn" title="Overslaan">
+            <i class="ph-bold ph-arrow-right"></i>
+        </button>
         
-        <div id="confidence-meter" title="Hoe goed het lijkt">
+        <!-- Meter -->
+        <div id="confidence-meter">
             <div id="confidence-fill"></div>
         </div>
     </div>
 
-    <script>
-        // --- Game Configuration ---
-        const TARGET_HOLD_TIME = 10; // Number of frames to hold expression to win
-        const DETECTION_THRESHOLD = 0.7; // How confident the AI needs to be (0.0 to 1.0)
-        
-        // Emoji Definitions
+    <!-- HOOFD SCRIPT -->
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+        // --- DE MEGA EMOTICON BIBLIOTHEEK ---
         const EMOTIONS = [
-            { id: 'happy', emoji: '😄', text: 'Kijk Blij!', color: '#FFD700' },
-            { id: 'surprised', emoji: '😲', text: 'Kijk Verrast!', color: '#ADD8E6' },
-            { id: 'angry', emoji: '😠', text: 'Kijk Knorrig!', color: '#FF6347', threshold: 0.4 },
-            { id: 'sad', emoji: '😢', text: 'Kijk Verdrietig', color: '#4682B4' },
-            // Lower threshold (0.2) makes this very easy to get
-            { id: 'disgusted', emoji: '🤢', text: 'Bah, vies!', color: '#8FBC8F', threshold: 0.2 },
-            { id: 'fearful', emoji: '😱', text: 'Kijk Bang!', color: '#9370DB', threshold: 0.25 },
-            { id: 'neutral', emoji: '😐', text: 'Kijk Serieus!', color: '#D3D3D3' },
-            // New Variations (Reuse base emotions but with different prompts)
-            { id: 'happy', emoji: '😆', text: 'Lach Hardop!', color: '#FFD700' },
-            { id: 'surprised', emoji: '🤯', text: 'Hoofd Ontploft!', color: '#87CEEB' },
-            { id: 'angry', emoji: '😡', text: 'Super Boos!', color: '#B22222', threshold: 0.4 }
+            // --- BASIS EMOTIES ---
+            { 
+                id: 'happy', 
+                emoji: '😄', 
+                text: 'Grote blije lach!', 
+                check: (s) => s.mouthSmileLeft > 0.3 && s.mouthSmileRight > 0.3 
+            },
+            { 
+                id: 'surprised', 
+                emoji: '😲', 
+                text: 'Kijk verrast!', 
+                check: (s) => s.jawOpen > 0.2 && s.browInnerUp > 0.2 
+            },
+            { 
+                id: 'angry', 
+                emoji: '😠', 
+                text: 'Kijk heel boos!', 
+                check: (s) => s.browDownLeft > 0.3 && s.browDownRight > 0.3 
+            },
+            { 
+                id: 'sad', 
+                emoji: '😢', 
+                text: 'Kijk verdrietig...', 
+                check: (s) => (s.mouthFrownLeft > 0.1 && s.mouthFrownRight > 0.1) || s.browInnerUp > 0.2
+            },
+            
+            // --- OGEN ---
+            { 
+                id: 'wink_left', 
+                emoji: '😉', 
+                text: 'Knipoog je linkeroog!', 
+                check: (s) => s.eyeBlinkLeft > 0.4 && s.eyeBlinkRight < 0.5 
+            },
+            { 
+                id: 'wink_right', 
+                emoji: '😜', 
+                text: 'Knipoog je rechteroog!', 
+                check: (s) => s.eyeBlinkRight > 0.4 && s.eyeBlinkLeft < 0.5 
+            },
+            { 
+                id: 'squint', 
+                emoji: '😑', 
+                text: 'Knijp je ogen dicht!', 
+                check: (s) => s.eyeSquintLeft > 0.3 && s.eyeSquintRight > 0.3 
+            },
+            { 
+                id: 'look_left', 
+                emoji: '👀', 
+                text: 'Kijk naar links!', 
+                check: (s) => s.eyeLookOutLeft > 0.3 
+            },
+            { 
+                id: 'look_right', 
+                emoji: '👀', 
+                text: 'Kijk naar rechts!', 
+                check: (s) => s.eyeLookOutRight > 0.3 
+            },
+            { 
+                id: 'roll_eyes', 
+                emoji: '🙄', 
+                text: 'Kijk omhoog!', 
+                check: (s) => s.eyeLookUpLeft > 0.15 || s.eyeLookUpRight > 0.15
+            },
+            {
+                id: 'sleep',
+                emoji: '😴',
+                text: 'Slaap! (Ogen dicht)',
+                check: (s) => s.eyeBlinkLeft > 0.7 && s.eyeBlinkRight > 0.7
+            },
+
+            // --- MOND & WANGEN ---
+            { 
+                id: 'kiss', 
+                emoji: '😗', 
+                text: 'Geef een kusje!', 
+                check: (s) => s.mouthPucker > 0.35 
+            },
+            { 
+                id: 'puff', 
+                emoji: '🐡', 
+                text: 'Blaas je wangen op!', 
+                // Makkelijkere check: wangen OF tuitmond
+                check: (s) => s.cheekPuff > 0.1 || s.mouthPucker > 0.3
+            },
+            { 
+                id: 'scream', 
+                emoji: '😱', 
+                text: 'Mond wijd open!', 
+                check: (s) => s.jawOpen > 0.35
+            },
+            { 
+                id: 'oh', 
+                emoji: '😮', 
+                text: 'Maak een "O" vorm!', 
+                check: (s) => s.mouthPucker > 0.3 && s.jawOpen > 0.1 
+            },
+            {
+                id: 'grimace',
+                emoji: '😬',
+                text: 'Laat je tanden zien!',
+                check: (s) => (s.mouthStretchLeft > 0.3 && s.mouthStretchRight > 0.3) && s.jawOpen < 0.2
+            },
+            {
+                id: 'mouth_side',
+                emoji: '🥴',
+                text: 'Mond scheef!',
+                check: (s) => s.mouthLeft > 0.4 || s.mouthRight > 0.4
+            },
+            {
+                id: 'rabbit',
+                emoji: '🐰',
+                text: 'Snif als een konijn!',
+                check: (s) => s.mouthUpperUpLeft > 0.3 || s.mouthUpperUpRight > 0.3
+            },
+            
+            // --- NIEUWE TOEVOEGINGEN ---
+            {
+                id: 'smirk',
+                emoji: '😏',
+                text: 'Stoere grijns (1 kant)!',
+                // Lach links EN niet rechts (of andersom)
+                check: (s) => (s.mouthSmileLeft > 0.4 && s.mouthSmileRight < 0.2) || (s.mouthSmileRight > 0.4 && s.mouthSmileLeft < 0.2)
+            },
+            {
+                id: 'hide_lips',
+                emoji: '😶',
+                text: 'Verberg je lippen!',
+                check: (s) => s.mouthRollUpper > 0.2 && s.mouthRollLower > 0.2
+            },
+            {
+                id: 'whistle',
+                emoji: '😙',
+                text: 'Maak een fluitmondje!',
+                // Funnel is anders dan pucker (meer open)
+                check: (s) => s.mouthFunnel > 0.3
+            },
+            {
+                id: 'confused',
+                emoji: '😕',
+                text: 'Trek je kin omhoog!',
+                check: (s) => s.mouthShrugLower > 0.3
+            },
+            {
+                id: 'frown_open',
+                emoji: '😦',
+                text: 'Mond open & Fronsen!',
+                check: (s) => s.jawOpen > 0.2 && s.browDownLeft > 0.2
+            },
+
+            // --- OVERIG ---
+            { 
+                id: 'skeptical', 
+                emoji: '🤨', 
+                text: 'Trek één wenkbrauw op!', 
+                check: (s) => (s.browOuterUpLeft > 0.3 && s.browOuterUpRight < 0.3) || (s.browOuterUpRight > 0.3 && s.browOuterUpLeft < 0.3)
+            },
+            { 
+                id: 'disgust', 
+                emoji: '🤢', 
+                text: 'Iew! Dat stinkt!', 
+                check: (s) => s.noseSneerLeft > 0.02 || s.noseSneerRight > 0.02 || (s.mouthPucker > 0.2 && s.browDownLeft > 0.2)
+            },
+            { 
+                id: 'silly', 
+                emoji: '🤪', 
+                text: 'Wenkbrauwen omhoog!', 
+                check: (s) => s.browOuterUpLeft > 0.3 && s.browOuterUpRight > 0.3 
+            },
+            {
+                id: 'content',
+                emoji: '😌',
+                text: 'Zachte glimlach', 
+                check: (s) => s.mouthSmileLeft > 0.3 && s.jawOpen < 0.2
+            }
         ];
 
-        // --- State ---
+        // --- SPEL VARIABELEN ---
+        let faceLandmarker;
+        let video = document.getElementById("video");
         let score = 0;
         let currentEmotionIndex = 0;
-        let isModelLoaded = false;
-        let isGameRunning = false;
-        let matchCounter = 0; // Counts frames where face matches
-        let isProcessingWin = false; // Prevent double firing
-
-        // --- DOM Elements ---
-        const video = document.getElementById('video');
-        const loadingScreen = document.getElementById('loading-screen');
-        const targetEmojiEl = document.getElementById('target-emoji');
-        const targetTextEl = document.getElementById('target-text');
-        const targetContainer = document.getElementById('target-container');
-        const scoreEl = document.getElementById('score');
-        const skipBtn = document.getElementById('skip-btn');
-        const successMsg = document.getElementById('success-message');
-        const confidenceFill = document.getElementById('confidence-fill');
-        const nextLevelBtn = document.getElementById('next-level-btn');
-        const downloadLink = document.getElementById('download-link');
-        const winSnapshot = document.getElementById('win-snapshot');
-
-        // --- Audio Controller (Synthesized sounds) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isProcessingWin = false;
+        let matchCounter = 0;
+        const TARGET_HOLD_FRAMES = 8;
         
-        function playSound(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const osc = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            osc.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+        let myConfetti = null;
 
-            const now = audioCtx.currentTime;
+        // --- MEDIAPIPE OPZETTEN ---
+        async function createFaceLandmarker() {
+            try {
+                const filesetResolver = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
+                
+                faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                    baseOptions: {
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "GPU"
+                    },
+                    outputFaceBlendshapes: true,
+                    runningMode: "VIDEO",
+                    numFaces: 1
+                });
+                
+                const confettiCanvas = document.getElementById('confetti-canvas');
+                myConfetti = confetti.create(confettiCanvas, { resize: true });
 
-            if (type === 'success') {
-                // Happy major arpeggio
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, now); // C5
-                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
-                osc.frequency.setValueAtTime(1046.50, now + 0.3); // C6
-                
-                gainNode.gain.setValueAtTime(0.3, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
-                
-                osc.start(now);
-                osc.stop(now + 0.6);
-            } else if (type === 'skip') {
-                // Whoosh sound
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.linearRampToValueAtTime(50, now + 0.2);
-                
-                gainNode.gain.setValueAtTime(0.2, now);
-                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.2);
-                
-                osc.start(now);
-                osc.stop(now + 0.2);
-            } else if (type === 'pop') {
-                // Short pop
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                
-                gainNode.gain.setValueAtTime(0.1, now);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                
-                osc.start(now);
-                osc.stop(now + 0.1);
+                startCamera();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('status-text').innerText = "Fout bij laden AI. Ververs de pagina!";
             }
         }
 
-        // --- Game Logic ---
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    video.addEventListener("loadeddata", () => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                        pickRandomEmotion();
+                        predictWebcam();
+                    });
+                })
+                .catch(err => {
+                    document.getElementById('status-text').innerText = "Cameratoegang nodig om te spelen!";
+                });
+        }
+
+        // --- SPEL LOOP ---
+        let lastVideoTime = -1;
+        
+        async function predictWebcam() {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                let startTimeMs = performance.now();
+                
+                if (lastVideoTime !== video.currentTime) {
+                    lastVideoTime = video.currentTime;
+                    const results = faceLandmarker.detectForVideo(video, startTimeMs);
+                    
+                    if (results.faceBlendshapes && results.faceBlendshapes.length > 0) {
+                        const shapes = results.faceBlendshapes[0].categories.reduce((acc, shape) => {
+                            acc[shape.categoryName] = shape.score;
+                            return acc;
+                        }, {});
+
+                        checkWinCondition(shapes);
+                    } else {
+                        updateConfidenceMeter(0);
+                    }
+                }
+            }
+            window.requestAnimationFrame(predictWebcam);
+        }
+
+        function checkWinCondition(shapes) {
+            if (isProcessingWin) return;
+
+            const currentTarget = EMOTIONS[currentEmotionIndex];
+            const isMatch = currentTarget.check(shapes);
+
+            if (isMatch) {
+                matchCounter++;
+            } else {
+                matchCounter = Math.max(0, matchCounter - 1);
+            }
+
+            const percentage = Math.min(100, (matchCounter / TARGET_HOLD_FRAMES) * 100);
+            updateConfidenceMeter(percentage);
+
+            if (matchCounter >= TARGET_HOLD_FRAMES) {
+                handleWin();
+            }
+        }
+
+        function updateConfidenceMeter(percentage) {
+            const fill = document.getElementById('confidence-fill');
+            fill.style.height = `${percentage}%`;
+            
+            if (percentage > 80) {
+                fill.style.backgroundColor = "#77DD77";
+            } else {
+                fill.style.backgroundColor = "#FF9AA2";
+            }
+        }
+
+        // --- SPEL LOGICA ---
 
         function pickRandomEmotion() {
             let newIndex;
@@ -409,22 +583,37 @@
             } while (newIndex === currentEmotionIndex && EMOTIONS.length > 1);
             
             currentEmotionIndex = newIndex;
-            updateUI();
+            
+            const emotion = EMOTIONS[currentEmotionIndex];
+            document.getElementById('target-emoji').innerText = emotion.emoji;
+            document.getElementById('target-text').innerText = emotion.text;
+            
+            const container = document.getElementById('target-container');
+            container.style.transform = "translateX(-50%) scale(0.8)";
+            setTimeout(() => {
+                container.style.transform = "translateX(-50%) scale(1)";
+            }, 100);
+
+            matchCounter = 0;
+            updateConfidenceMeter(0);
         }
 
-        function updateUI() {
-            const emotion = EMOTIONS[currentEmotionIndex];
-            targetEmojiEl.innerText = emotion.emoji;
-            targetTextEl.innerText = emotion.text;
+        function handleWin() {
+            isProcessingWin = true;
             
-            // Pop animation for the container
-            targetContainer.style.transform = "translateX(-50%) scale(0.8)";
-            setTimeout(() => {
-                targetContainer.style.transform = "translateX(-50%) scale(1)";
-            }, 100);
+            document.getElementById('success-message').classList.add('show');
             
-            matchCounter = 0;
-            confidenceFill.style.height = '0%';
+            if (myConfetti) {
+                myConfetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            captureSnapshot();
+            score++;
+            document.getElementById('score').innerText = score;
         }
 
         function captureSnapshot() {
@@ -433,187 +622,35 @@
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             
-            // Mirror the image context so the saved photo looks like the mirror reflection (what the user sees)
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
-            
-            // Draw the current video frame
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Reset transform to draw text normally (not mirrored)
+            ctx.drawImage(video, 0, 0);
             ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-            // Draw the target emoji in the top right
             const emotion = EMOTIONS[currentEmotionIndex];
-            ctx.font = "80px Arial"; // System font for emojis
+            ctx.font = "100px Arial";
             ctx.textAlign = "right";
-            ctx.textBaseline = "top";
-            
-            // Add a little drop shadow to make it pop against any background
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowBlur = 5;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            ctx.fillText(emotion.emoji, canvas.width - 20, 100);
 
-            // Draw: x = width - 20px padding, y = 20px padding
-            ctx.fillText(emotion.emoji, canvas.width - 20, 20);
-            
-            // Convert to data URL
             const dataUrl = canvas.toDataURL('image/png');
-            return dataUrl;
+            document.getElementById('win-snapshot').src = dataUrl;
+            document.getElementById('download-link').href = dataUrl;
         }
 
-        function handleWin() {
-            if (isProcessingWin) return;
-            isProcessingWin = true;
-
-            playSound('success');
-            
-            // Capture the moment!
-            const snapshotUrl = captureSnapshot();
-            winSnapshot.src = snapshotUrl;
-            downloadLink.href = snapshotUrl;
-            // Generate a fun filename with timestamp
-            downloadLink.download = `gekke-bekken-kampioen-${Date.now()}.png`;
-
-            // Confetti explosion
-            confetti({
-                zIndex: 2000, // Ensure confetti appears ON TOP of the popup
-                particleCount: 150,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA']
-            });
-
-            // Show success message with the photo
-            successMsg.classList.add('show');
-            score++;
-            scoreEl.innerText = score;
-
-            // REMOVED Auto-advance code. Now we wait for button click.
-        }
-
-        function handleNextLevel() {
-            successMsg.classList.remove('show');
-            // Small delay to allow fade out
-            setTimeout(() => {
-                isProcessingWin = false;
-                pickRandomEmotion();
-            }, 300);
-        }
-
-        function handleSkip() {
-            if (isProcessingWin) return;
-            playSound('skip');
-            
-            // Small visual feedback
-            skipBtn.style.transform = "scale(0.9)";
-            setTimeout(() => skipBtn.style.transform = "scale(1)", 100);
-            
+        function nextLevel() {
+            document.getElementById('success-message').classList.remove('show');
+            if (myConfetti) myConfetti.reset();
+            isProcessingWin = false;
             pickRandomEmotion();
         }
 
-        // --- Face API Setup ---
+        document.getElementById('next-level-btn').addEventListener('click', nextLevel);
+        document.getElementById('skip-btn').addEventListener('click', nextLevel);
 
-        async function loadModels() {
-            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
-            
-            try {
-                // Load only what we need for expression detection
-                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-                await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-                startVideo();
-            } catch (err) {
-                console.error("Error loading models", err);
-                document.querySelector('.loading-text').innerText = "Oh nee! De hersenen werken niet.";
-            }
-        }
-
-        function startVideo() {
-            navigator.mediaDevices.getUserMedia({ video: {} })
-                .then(stream => {
-                    video.srcObject = stream;
-                })
-                .catch(err => {
-                    console.error("Camera denied", err);
-                    document.querySelector('.loading-text').innerText = "Ik moet je zien om te spelen! Zet je camera aan.";
-                });
-        }
-
-        video.addEventListener('play', () => {
-            isModelLoaded = true;
-            loadingScreen.style.display = 'none';
-            isGameRunning = true;
-            
-            // Start the detection loop
-            setInterval(async () => {
-                if (!isGameRunning || isProcessingWin) return;
-
-                // Detect faces and expressions
-                // Using TinyFaceDetector for speed (good for real-time)
-                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
-
-                if (detections.length > 0) {
-                    // Get the first face detected
-                    const expressions = detections[0].expressions;
-                    const targetEmotion = EMOTIONS[currentEmotionIndex];
-                    const targetId = targetEmotion.id;
-                    const requiredConfidence = targetEmotion.threshold || DETECTION_THRESHOLD;
-                    
-                    // Check probability of the current target emotion
-                    let currentProbability = expressions[targetId];
-
-                    // --- COMPATIBILITY PATCHES ---
-                    // "Fear" is very hard for this model; it often looks like "Surprise"
-                    // We blend in some of the "Surprised" score to help it register
-                    if (targetId === 'fearful') {
-                         // Take the actual fear, or half of surprise, whichever is higher
-                         currentProbability = Math.max(currentProbability, expressions['surprised'] * 0.5);
-                    }
-                    
-                    // "Disgusted" often looks like "Angry" to the model
-                    // Increased the fallback: if it looks even mostly angry (0.7), it counts towards disgust
-                    if (targetId === 'disgusted') {
-                        currentProbability = Math.max(currentProbability, expressions['angry'] * 0.7);
-                    }
-                    // -----------------------------
-
-                    // Visual feedback: Scale bar relative to the REQUIRED threshold
-                    // So if threshold is 0.4, getting 0.4 fills the bar 100%
-                    const percentage = Math.min(100, Math.round((currentProbability / requiredConfidence) * 90));
-                    confidenceFill.style.height = `${percentage}%`;
-                    
-                    // Change color if we are close/winning
-                    if (percentage > 90) {
-                        confidenceFill.style.backgroundColor = "#77DD77"; // Pastel Green
-                    } else {
-                        confidenceFill.style.backgroundColor = "#FFB7B2"; // Reset to pink
-                    }
-
-                    // Check for win condition
-                    if (currentProbability > requiredConfidence) {
-                        matchCounter++;
-                        if (matchCounter >= TARGET_HOLD_TIME) {
-                            handleWin();
-                        }
-                    } else {
-                        // Decay the match counter so you don't lose progress instantly on a glitch
-                        matchCounter = Math.max(0, matchCounter - 1);
-                    }
-                } else {
-                    confidenceFill.style.height = '0%';
-                }
-            }, 100); // Check every 100ms
-        });
-
-        // --- Initialization ---
-        skipBtn.addEventListener('click', handleSkip);
-        nextLevelBtn.addEventListener('click', handleNextLevel);
-        
-        // Start loading
-        loadModels();
-        pickRandomEmotion();
+        createFaceLandmarker();
 
     </script>
 </body>
 </html>
+
+
